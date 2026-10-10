@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>فحص التثبيت</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #fff6fa; color: #3a1226; margin: 0; padding: 20px; line-height: 1.7; }
+    h1 { color: #8e0b47; font-size: 20px; margin: 0 0 14px; }
+    .row { background: #fff; border-radius: 14px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 4px 12px rgba(142,11,71,.1); display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+    .ok { color: #1e8e3e; font-weight: 700; } .bad { color: #c0392b; font-weight: 700; } .warn { color: #b7791f; font-weight: 700; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 999px; background: #8e0b47; color: #fff; font-size: 15px; font-weight: 700; margin-top: 8px; }
+    pre { background: #fff; border-radius: 12px; padding: 12px; font-size: 12px; white-space: pre-wrap; direction: ltr; text-align: left; }
+    a { color: #8e0b47; }
+  </style>
+</head>
+<body>
+  <h1>🔍 فحص تثبيت التطبيق</h1>
+  <div id="out"></div>
+  <button id="install" style="display:none">📲 تثبيت التطبيق الآن</button>
+  <button onclick="location.reload()">إعادة الفحص</button>
+  <p><a href="./">← العودة للتطبيق</a></p>
+  <pre id="summary"></pre>
+
+<script>
+const out = document.getElementById('out');
+const lines = [];
+function row(label, status, detail) {
+  const cls = status === true ? 'ok' : status === false ? 'bad' : 'warn';
+  const mark = status === true ? '✔' : status === false ? '✘' : '!';
+  out.insertAdjacentHTML('beforeend', '<div class="row"><span>' + label + '</span><span class="' + cls + '">' + mark + ' ' + (detail || '') + '</span></div>');
+  lines.push((status === true ? 'OK   ' : status === false ? 'FAIL ' : 'WARN ') + label + (detail ? ' — ' + detail : ''));
+}
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; document.getElementById('install').style.display = 'block'; });
+document.getElementById('install').onclick = async () => { if (deferred) { deferred.prompt(); } };
+
+(async function () {
+  const ua = navigator.userAgent;
+  lines.push('URL: ' + location.href); lines.push('UA: ' + ua);
+
+  row('الاتصال آمن (https)', window.isSecureContext, location.protocol);
+
+  const inApp = /FBAN|FBAV|Instagram|Telegram|WhatsApp|Line\/|Snapchat|; wv\)|MicroMessenger/i.test(ua);
+  row('المتصفح الحالي', inApp ? null : true, inApp ? 'متصفح داخل تطبيق آخر — افتح الرابط في Chrome أو Safari' : 'عادي');
+
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  row('يعمل الآن كتطبيق مثبّت', standalone ? true : null, standalone ? 'نعم' : 'لا (متصفح عادي)');
+
+  let manifest = null;
+  try {
+    const r = await fetch('manifest.webmanifest', { cache: 'no-cache' });
+    row('ملف manifest.webmanifest', r.ok, 'HTTP ' + r.status);
+    if (r.ok) manifest = await r.json();
+  } catch (e) { row('ملف manifest.webmanifest', false, 'تعذّر الوصول'); }
+
+  if (manifest) {
+    row('display = standalone', manifest.display === 'standalone', manifest.display);
+    const icons = manifest.icons || [];
+    for (const ic of icons) {
+      await new Promise(res => {
+        const img = new Image();
+        img.onload = () => { row('أيقونة ' + ic.src, img.naturalWidth > 0, img.naturalWidth + 'px'); res(); };
+        img.onerror = () => { row('أيقونة ' + ic.src, false, 'الملف غير موجود في المستودع'); res(); };
+        img.src = ic.src + '?t=' + Date.now();
+      });
+    }
+  }
+
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        row('Service Worker', false, 'غير مسجّل — افتح التطبيق الرئيسي مرة ثم أعد الفحص');
+      } else {
+        const active = !!reg.active;
+        row('Service Worker', active, active ? 'نشط' : 'قيد التثبيت…');
+      }
+    } catch (e) { row('Service Worker', false, e.message); }
+  } else {
+    row('Service Worker', false, 'غير مدعوم في هذا المتصفح');
+  }
+
+  await new Promise(r => setTimeout(r, 1500));
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  if (isIOS) {
+    row('التثبيت', null, 'آيفون: زر المشاركة ← إضافة إلى الشاشة الرئيسية');
+  } else {
+    row('المتصفح يعرض التثبيت', deferred ? true : null,
+      deferred ? 'جاهز — اضغط الزر الأسفل' : 'لم يُعرض بعد (إن كان مثبتًا مسبقًا فهذا طبيعي)');
+  }
+  document.getElementById('summary').textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>

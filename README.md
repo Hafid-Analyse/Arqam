@@ -7,11 +7,12 @@
 |---|---|
 | `index.html` / `style.css` / `app.js` | الواجهة |
 | `config.js` | **رابط الـ Web App** (الملف الوحيد الذي تعدّله عند تغيّر الرابط) |
-| `manifest.webmanifest` + `icons/` | بيانات التثبيت كتطبيق |
+| `manifest.webmanifest` + `icon-*.png` + `apple-touch-icon.png` | بيانات التثبيت والأيقونات |
+| `check.html` | صفحة فحص التثبيت (تعرض ما ينقص إن لم يظهر خيار التثبيت) |
 | `sw.js` | العمل بدون إنترنت |
 
 ## النشر على GitHub Pages
-1. ارفع كل الملفات (مع مجلد `icons`) إلى جذر المستودع.
+1. ارفع **كل** الملفات إلى جذر المستودع مباشرة (لا توجد مجلدات).
 2. Settings → Pages → Source: `Deploy from a branch` → Branch: `main` / `(root)` → Save.
 3. بعد دقيقة يظهر الرابط: `https://<اسم-الحساب>.github.io/<اسم-المستودع>/`
 
